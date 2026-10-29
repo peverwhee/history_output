@@ -233,9 +233,7 @@ contains
          end_dims = field%end_dims()
          allocate(buffer_shape(size(buff_shape,1)))
          buffer_shape(1) = end_dims(1) - beg_dims(1) + 1
-         if (size(buffer_shape) > 1) then
-            buffer_shape(2) = buff_shape(2)
-         end if
+         buffer_shape(2:) = buff_shape(2:)
          call buffer%initialize(field_base, output_vol, horiz_axis_ind,       &
               accum_val, buffer_shape, block_sizes, block_ind, &
               logger=errors)

@@ -1395,7 +1395,7 @@ contains
       integer                                    :: aerr
       type(hist_buff_1d_t), pointer :: real_1
       type(hist_buff_2d_t), pointer :: real_2
-      type(hist_buff_2d_t), pointer :: real_3
+      type(hist_buff_3d_t), pointer :: real_3
 
       ! Clear relevant pointers
       nullify(newbuf)
