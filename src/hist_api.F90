@@ -190,8 +190,8 @@ contains
          accum_val = hist_accum_var
       case default
          call hist_add_error(subname,                                         &
-              "Unknown accumulation operator type, '",                        &
-              errstr2=trim(accum_type)//"'", errors=errors)
+              'Unknown accumulation operator type, "',                        &
+              errstr2=trim(accum_type)//'"', errors=errors)
       end select
       ! Only real values handled right now
       if (trim(type_str) /= 'real') then
@@ -359,7 +359,7 @@ contains
       use hist_msg_handler, only: hist_add_message, VERBOSE, hist_add_error
       use hist_field,       only: hist_field_info_t
       use hist_buffer,      only: hist_buff_3d_t, hist_buffer_t
-      use ISO_FORTRAN_ENV,  only: REAL64
+      use, intrinsic :: ISO_FORTRAN_ENV, only: REAL64
 
       ! Dummy arguments
       class(hist_field_info_t), pointer,  intent(inout) :: field
@@ -386,13 +386,12 @@ contains
                      call  logger%add_stack_frame(ERROR, __FILE__, __LINE__ - 3, &
                           subname=subname)
                      exit
-                  else
-                     call hist_add_message(subname, VERBOSE,                     &
-                          "Accumulated data for",                                &
-                          msgstr2=trim(field%diag_name())//", Buffer type, ",    &
-                          msgstr3=trim(buff%buffer_type()),                  &
-                          logger=logger)
                   end if
+                  call hist_add_message(subname, VERBOSE,                     &
+                       'Accumulated data for',                                &
+                       msgstr2=trim(field%diag_name())//', Buffer type, ',    &
+                       msgstr3=trim(buff%buffer_type()),                  &
+                       logger=logger)
                class default
                   call hist_add_error(subname, 'invalid buffer type', errors=logger)
                end select
@@ -436,8 +435,8 @@ contains
                   subname=subname)
             else
                call hist_add_message(subname, VERBOSE,                   &
-                  "Normalized data for",                                 &
-                  msgstr2=trim(field%diag_name())//", Buffer type, ",    &
+                  'Normalized data for',                                 &
+                  msgstr2=trim(field%diag_name())//', Buffer type, ',    &
                   msgstr3=trim(buff%buffer_type()),                  &
                   logger=logger)
             end if
@@ -479,8 +478,8 @@ contains
                  subname=subname)
             else
                call hist_add_message(subname, VERBOSE,                   &
-                  "Normalized data for",                                 &
-                  msgstr2=trim(field%diag_name())//", Buffer type, ",    &
+                  'Normalized data for',                                 &
+                  msgstr2=trim(field%diag_name())//', Buffer type, ',    &
                   msgstr3=trim(buff_ptr%buffer_type()),                  &
                   logger=logger)
             end if
@@ -498,7 +497,7 @@ contains
       use hist_msg_handler, only: hist_log_messages, hist_have_error, ERROR
       use hist_msg_handler, only: hist_add_message, VERBOSE, hist_add_error
       use hist_field,       only: hist_field_info_t
-      use ISO_FORTRAN_ENV,  only: REAL64
+      use, intrinsic :: ISO_FORTRAN_ENV, only: REAL64
 
       ! Dummy arguments
       class(hist_field_info_t),          intent(inout) :: field
@@ -522,8 +521,8 @@ contains
                  subname=subname)
             else
                call hist_add_message(subname, VERBOSE,                   &
-                  "Normalized data for",                                 &
-                  msgstr2=trim(field%diag_name())//", Buffer type, ",    &
+                  'Normalized data for',                                 &
+                  msgstr2=trim(field%diag_name())//', Buffer type, ',    &
                   msgstr3=trim(buff_ptr%buffer_type()),                  &
                   logger=logger)
             end if

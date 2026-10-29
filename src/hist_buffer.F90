@@ -85,14 +85,13 @@ module hist_buffer
    type, public, extends(hist_buffer_t) :: hist_buff_3d_t
       real(REAL64), allocatable :: data(:,:,:)
       real(REAL64), allocatable :: var_buffer(:,:,:)
-      integer, allocatable,    private :: num_samples(:)
-   CONTAINS
+   contains
       procedure :: clear => buff_3d_clear
       procedure :: accumulate => buff_3d_accum
       procedure :: norm_value => buff_3d_value
       procedure :: initialize => init_buff_3d
       procedure :: check_fill_value => buff_3d_check_fill
-      procedure :: get_var_buff => get_var_buffer_3d
+      procedure :: get_var_buffer => get_var_buffer_3d
    end type hist_buff_3d_t
 
    ! Abstract interfaces for hist_buffer_t class
@@ -703,7 +702,7 @@ contains
          end do
          if (flag_xyfill) then
             ! Check if assumption that columns are consistent wrt fill value was accurate
-            call this%check_fill_value(field(col_beg_use:col_end_use, :), fill_value, logger)
+            call this%check_fill_value(field, fill_value, logger)
          end if
       case (hist_accum_min)
          do ind1 = col_beg_use, col_end_use
@@ -736,7 +735,7 @@ contains
             end if
          end do
          if (flag_xyfill) then
-            call this%check_fill_value(field(col_beg_use:col_end_use, :), fill_value, logger)
+            call this%check_fill_value(field, fill_value, logger)
          end if
       case (hist_accum_max)
          do ind1 = col_beg_use, col_end_use
@@ -768,7 +767,7 @@ contains
             end if
          end do
          if (flag_xyfill) then
-            call this%check_fill_value(field(col_beg_use:col_end_use, :), fill_value, logger)
+            call this%check_fill_value(field, fill_value, logger)
          end if
       case (hist_accum_avg)
          do ind1 = col_beg_use, col_end_use
@@ -789,7 +788,7 @@ contains
             end do
          end do
          if (flag_xyfill) then
-            call this%check_fill_value(field(col_beg_use:col_end_use, :), fill_value, logger)
+            call this%check_fill_value(field, fill_value, logger)
          end if
       case (hist_accum_var)
          ! Standard deviation using Welford's algorithm
@@ -835,7 +834,7 @@ contains
             end do
          end do
          if (flag_xyfill) then
-            call this%check_fill_value(field(col_beg_use:col_end_use, :), fill_value, logger)
+            call this%check_fill_value(field, fill_value, logger)
          end if
       case default
          ! This shouldn't trigger, so raise an error:
@@ -856,24 +855,18 @@ contains
       type(hist_log_messages), optional, intent(inout) :: logger
       ! Local variables
       character(len=512) :: errstr
-      integer :: idx, jdx
-      logical :: error_found
+      integer :: idx
+      logical :: col_is_fill
 
-      error_found = .false.
-      lev_loop: do jdx = 2, this%field_shape(2)
-         col_loop: do idx = 1, this%field_shape(1)
-            if (field(idx,1) == fill_value .and. field(idx,jdx) /= fill_value .or. &
-                 field(idx,1) /= fill_value .and. field(idx,jdx) == fill_value) then
-               write(errstr, '(a,i0)') 'ERROR: fill value applied inconsistently for column ', idx
-               call hist_add_error('buff_2d_check_fill', errstr, errors=logger)
-               error_found = .true.
-               exit col_loop
-            end if
-         end do col_loop
-         if (error_found) then
-            exit lev_loop
+      ! Every level in a column must match the fill status of its first level
+      do idx = 1, size(field, 1)
+         col_is_fill = (field(idx,1) == fill_value)
+         if (any((field(idx,:) == fill_value) .neqv. col_is_fill)) then
+            write(errstr, '(a,i0)') 'ERROR: fill value applied inconsistently for column ', idx
+            call hist_add_error('buff_2d_check_fill', errstr, errors=logger)
+            exit
          end if
-      end do lev_loop
+      end do
 
    end subroutine buff_2d_check_fill
 
@@ -931,26 +924,27 @@ contains
       type(hist_log_messages), optional, intent(inout) :: logger
       ! Local variables
       integer                     :: aerr
+      character(len=256)          :: errmsg
       character(len=*), parameter :: subname = 'buff_3d_clear'
 
       if (.not. allocated(this%data)) then
-         allocate(this%data(this%field_shape(1), this%field_shape(2), this%field_shape(3)), stat=aerr)
+         allocate(this%data(this%field_shape(1), this%field_shape(2), this%field_shape(3)), stat=aerr, errmsg=errmsg)
          if (aerr /= 0) then
-            call hist_add_alloc_error('data', __FILE__, __LINE__ - 1,         &
+            call hist_add_alloc_error('data, error: '//errmsg, __FILE__, __LINE__ - 1, &
                  subname=subname, errors=logger)
          end if
       end if
       if (.not. allocated(this%var_buffer) .and. this%accum_type == hist_accum_var) then
-         allocate(this%var_buffer(this%field_shape(1), this%field_shape(2), this%field_shape(3)), stat=aerr)
+         allocate(this%var_buffer(this%field_shape(1), this%field_shape(2), this%field_shape(3)), stat=aerr, errmsg=errmsg)
          if (aerr /= 0) then
-            call hist_add_alloc_error('var_buffer', __FILE__, __LINE__ - 2,         &
+            call hist_add_alloc_error('var_buffer, error: '//errmsg, __FILE__, __LINE__ - 2,  &
                  subname=subname, errors=logger)
          end if
       end if
       if (.not. allocated(this%num_samples)) then
-         allocate(this%num_samples(this%field_shape(1)), stat=aerr)
+         allocate(this%num_samples(this%field_shape(1)), stat=aerr, errmsg=errmsg)
          if (aerr /= 0) then
-            call hist_add_alloc_error('num_samples', __FILE__, __LINE__ - 1,         &
+            call hist_add_alloc_error('num_samples, error: '//errmsg, __FILE__, __LINE__ - 1, &
                  subname=subname, errors=logger)
          end if
       end if
@@ -969,7 +963,7 @@ contains
       use hist_msg_handler, only: hist_log_messages
 
       class(hist_buff_3d_t),             intent(inout) :: this
-      class(hist_hashable_t),  pointer                 :: field_in
+      class(hist_hashable_t),  pointer,  intent(in)    :: field_in
       integer,                           intent(in)    :: volume_in
       integer,                           intent(in)    :: horiz_axis_in
       integer,                           intent(in)    :: accum_type_in
@@ -989,7 +983,7 @@ contains
 
    subroutine buff_3d_accum(this, field, cols_or_block, flag_xyfill, &
          fill_value, cole, logger)
-      use hist_msg_handler, only: hist_log_messages
+      use hist_msg_handler, only: hist_log_messages, hist_add_error
       ! Dummy arguments
       class(hist_buff_3d_t),       intent(inout) :: this
       real(REAL64),                      intent(in)    :: field(:,:,:)
@@ -999,10 +993,12 @@ contains
       integer,                 optional, intent(in)    :: cole
       type(hist_log_messages), optional, intent(inout) :: logger
       ! Local variables
-      integer      :: col_beg_use
-      integer      :: col_end_use
-      integer      :: ind1, ind2, ind3
-      real(REAL64) :: fld_val, tmp
+      integer            :: col_beg_use
+      integer            :: col_end_use
+      integer            :: ind1, ind2, ind3
+      real(REAL64)       :: fld_val, tmp
+      character(len=256) :: errmsg
+      character(len=*), parameter :: subname = 'buff_3d_accum'
 
       if (this%has_blocks()) then
          ! For a blocked field, <cols_or_block> is a block index
@@ -1041,7 +1037,7 @@ contains
          end do
          if (flag_xyfill) then
             ! Check if assumption that columns are consistent wrt fill value was accurate
-            call this%check_fill_value(field(col_beg_use:col_end_use, :, :), fill_value, logger)
+            call this%check_fill_value(field, fill_value, logger)
          end if
       case (hist_accum_min)
          do ind1 = col_beg_use, col_end_use
@@ -1078,7 +1074,7 @@ contains
             end if
          end do
          if (flag_xyfill) then
-            call this%check_fill_value(field(col_beg_use:col_end_use, :, :), fill_value, logger)
+            call this%check_fill_value(field, fill_value, logger)
          end if
       case (hist_accum_max)
          do ind1 = col_beg_use, col_end_use
@@ -1114,7 +1110,7 @@ contains
             end if
          end do
          if (flag_xyfill) then
-            call this%check_fill_value(field(col_beg_use:col_end_use, :, :), fill_value, logger)
+            call this%check_fill_value(field, fill_value, logger)
          end if
       case (hist_accum_avg)
          do ind1 = col_beg_use, col_end_use
@@ -1137,7 +1133,7 @@ contains
             end do
          end do
          if (flag_xyfill) then
-            call this%check_fill_value(field(col_beg_use:col_end_use, :, :), fill_value, logger)
+            call this%check_fill_value(field, fill_value, logger)
          end if
       case (hist_accum_var)
          ! Standard deviation using Welford's algorithm
@@ -1156,7 +1152,7 @@ contains
                         ! Only include the sample if it's not a fill value
                         if (this%num_samples(ind1) == 1) then
                            this%data(ind1, ind2, ind3) = fld_val
-                           this%var_buffer(ind1, ind2, ind3) = 0._REAL64
+                           this%var_buffer(ind1, ind2, ind3) = 0.0_REAL64
                         else
                            tmp = this%data(ind1, ind2, ind3)
                            this%data(ind1, ind2, ind3) = this%data(ind1, ind2, ind3) + &
@@ -1170,7 +1166,7 @@ contains
                   else
                      if (this%num_samples(ind1) == 1) then
                         this%data(ind1, ind2, ind3) = fld_val
-                        this%var_buffer(ind1, ind2, ind3) = 0._REAL64
+                        this%var_buffer(ind1, ind2, ind3) = 0.0_REAL64
                      else
                         tmp = this%data(ind1, ind2, ind3)
                         this%data(ind1, ind2, ind3) = this%data(ind1, ind2, ind3) + &
@@ -1185,8 +1181,12 @@ contains
             end do
          end do
          if (flag_xyfill) then
-            call this%check_fill_value(field(col_beg_use:col_end_use, :, :), fill_value, logger)
+            call this%check_fill_value(field, fill_value, logger)
          end if
+      case default
+         ! This shouldn't trigger, so raise an error:
+         write(errmsg, *) 'un-recognized accumulation type: ', this%accum_type
+         call hist_add_error(subname, errmsg, errors=logger)
       end select
 
    end subroutine buff_3d_accum
@@ -1202,25 +1202,17 @@ contains
       type(hist_log_messages), optional, intent(inout) :: logger
       ! Local variables
       character(len=512) :: errstr
-      integer :: idx, jdx, kdx
-      logical :: error_found
+      integer :: idx
+      logical :: col_is_fill
 
-      error_found = .false.
-      do jdx = 2, this%field_shape(2)
-         do kdx = 2, this%field_shape(3)
-            do idx = 1, this%field_shape(1)
-               if (field(idx,1,1) == fill_value .and. field(idx,jdx,kdx) /= fill_value .or. &
-                    field(idx,1,1) /= fill_value .and. field(idx,jdx,kdx) == fill_value) then
-                  write(errstr, '(a,i0)') 'ERROR: fill value applied inconsistently for column ', idx
-                  call hist_add_error('buff_3d_check_fill', errstr, errors=logger)
-                  error_found = .true.
-                  exit
-               end if
-            end do
-            if (error_found) then
-               exit
-            end if
-         end do
+      ! Every element in a column must match the fill status of its first element
+      do idx = 1, size(field, 1)
+         col_is_fill = (field(idx,1,1) == fill_value)
+         if (any((field(idx,:,:) == fill_value) .neqv. col_is_fill)) then
+            write(errstr, '(a,i0)') 'ERROR: fill value applied inconsistently for column ', idx
+            call hist_add_error('buff_3d_check_fill', errstr, errors=logger)
+            exit
+         end if
       end do
 
    end subroutine buff_3d_check_fill
@@ -1365,7 +1357,7 @@ contains
             newbuf => real_3
          else
             call hist_add_error(subname, &
-               "Failed to allocate real_3 buffer, errmsg = ", &
+               'Failed to allocate real_3 buffer, errmsg = ', &
                errstr2=trim(alloc_errmsg), errors=logger)
          end if
       case default

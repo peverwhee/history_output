@@ -102,7 +102,7 @@ contains
       integer,                 optional, intent(in)    :: beg_dims(:)
       integer,                 optional, intent(in)    :: end_dims(:)
       character(len=*),        optional, intent(in)    :: cell_methods
-      character(len=*),        optional, intent(in)    :: sampled_on_subcycle
+      logical,                 optional, intent(in)    :: sampled_on_subcycle
       ! Fortitude:
       ! allow(assumed-size-character-intent)
       character(len=*),        optional, intent(out)   :: errmsg
