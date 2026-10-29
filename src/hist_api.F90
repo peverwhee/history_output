@@ -19,21 +19,25 @@ module hist_api
    interface hist_field_accumulate
       module procedure hist_field_accumulate_1d
       module procedure hist_field_accumulate_2d
+      module procedure hist_field_accumulate_3d
    end interface hist_field_accumulate
 
    interface hist_field_norm_value
       module procedure hist_field_norm_value_1d
       module procedure hist_field_norm_value_2d
+      module procedure hist_field_norm_value_3d
    end interface hist_field_norm_value
 
    interface hist_field_value
       module procedure hist_field_value_1d
       module procedure hist_field_value_2d
+      module procedure hist_field_value_3d
    end interface hist_field_value
 
    interface hist_field_var_buffer
       module procedure hist_field_var_buffer_1d
       module procedure hist_field_var_buffer_2d
+      module procedure hist_field_var_buffer_3d
    end interface hist_field_var_buffer
 
    interface hist_field_set_buffer
@@ -53,7 +57,7 @@ contains
    function hist_new_field(diag_name_in, std_name_in, long_name_in, units_in, &
         type_in, decomp_in, dimensions, acc_flag, num_levels, field_shape, fill_value, &
         sampling_seq, flag_xyfill, mixing_ratio, dim_bounds, mdim_sizes, beg_dims, end_dims,  &
-        cell_methods, errors) result(new_field)
+        cell_methods, sampled_on_subcycle, errors) result(new_field)
       use hist_msg_handler, only: hist_have_error, hist_log_messages, ERROR
       use hist_field,       only: hist_field_initialize, hist_field_info_t
       use, intrinsic :: ISO_FORTRAN_ENV, only: REAL64
@@ -78,6 +82,7 @@ contains
       integer,                 optional, intent(in)    :: beg_dims(:)
       integer,                 optional, intent(in)    :: end_dims(:)
       character(len=*),        optional, intent(in)    :: cell_methods
+      logical,                 optional, intent(in)    :: sampled_on_subcycle
       type(hist_log_messages), optional, intent(inout) :: errors
 
       integer                     :: astat
@@ -96,7 +101,7 @@ contains
               num_levels, field_shape, sampling_seq=sampling_seq, flag_xyfill=flag_xyfill,   &
               fill_value=fill_value, mixing_ratio=mixing_ratio, dim_bounds=dim_bounds, &
               mdim_sizes=mdim_sizes, beg_dims=beg_dims, end_dims=end_dims, &
-              cell_methods=cell_methods, errmsg=errmsg)
+              cell_methods=cell_methods, sampled_on_subcycle=sampled_on_subcycle, errmsg=errmsg)
          if (hist_have_error(errors=errors)) then
             call errors%add_stack_frame(ERROR, __FILE__, __LINE__ - 3,        &
                  subname=subname)
@@ -140,7 +145,7 @@ contains
       class(hist_buffer_t),    pointer     :: buff_ptr
       class(hist_buffer_t),    pointer     :: buffer
       character(len=:),        allocatable :: type_str
-      integer,                 parameter   :: max_rank = 2
+      integer,                 parameter   :: max_rank = 3
       character(len=*),        parameter   :: subname = 'hist_new_buffer'
 
       ! Initialize output and local variables
@@ -198,8 +203,8 @@ contains
          accum_val = hist_accum_var
       case default
          call hist_add_error(subname,                                         &
-              "Unknown accumulation operator type, '",                        &
-              errstr2=trim(accum_type)//"'", errors=errors)
+              'Unknown accumulation operator type, "',                        &
+              errstr2=trim(accum_type)//'"', errors=errors)
       end select
       ! Only real values handled right now
       if (trim(type_str) /= 'real') then
@@ -213,6 +218,8 @@ contains
          bufftype_string = 'real_1'
       case (2)
          bufftype_string = 'real_2'
+      case (3)
+         bufftype_string = 'real_3'
       case default
          ! Over max rank currently handled
          call hist_add_error(subname, 'buffers have a max rank of ',          &
@@ -359,6 +366,59 @@ contains
 
    !#######################################################################
 
+   subroutine hist_field_accumulate_3d(field, data, cols_or_block,      &
+        cole, logger)
+      use hist_msg_handler, only: hist_log_messages, hist_have_error, ERROR
+      use hist_msg_handler, only: hist_add_message, VERBOSE, hist_add_error
+      use hist_field,       only: hist_field_info_t
+      use hist_buffer,      only: hist_buff_3d_t, hist_buffer_t
+      use, intrinsic :: ISO_FORTRAN_ENV, only: REAL64
+
+      ! Dummy arguments
+      class(hist_field_info_t), pointer,  intent(inout) :: field
+      real(REAL64),                       intent(in)    :: data(:,:,:)
+      integer,                            intent(in)    :: cols_or_block
+      integer,                  optional, intent(in)    :: cole
+      type(hist_log_messages),  optional, intent(inout) :: logger
+      ! Local variables
+      class(hist_buffer_t), pointer     :: buff_ptr
+      class(hist_buff_3d_t), pointer    :: buff
+      character(len=*),     parameter   :: subname = 'hist_field_accumulate_3d'
+
+      if (associated(field)) then
+         buff_ptr => field%buffers
+         do
+            if (associated(buff_ptr) .and.                                    &
+                 (.not. hist_have_error(errors=logger))) then
+               select type (buff_ptr)
+               class is (hist_buff_3d_t)
+                  buff => buff_ptr
+                  call buff%accumulate(data, cols_or_block, field%flag_xyfill(), &
+                          field%fill_value(), cole, logger)
+                  if (hist_have_error(errors=logger)) then
+                     call  logger%add_stack_frame(ERROR, __FILE__, __LINE__ - 3, &
+                          subname=subname)
+                     exit
+                  end if
+                  call hist_add_message(subname, VERBOSE,                     &
+                       'Accumulated data for',                                &
+                       msgstr2=trim(field%diag_name())//', Buffer type, ',    &
+                       msgstr3=trim(buff%buffer_type()),                  &
+                       logger=logger)
+               class default
+                  call hist_add_error(subname, 'invalid buffer type', errors=logger)
+               end select
+               buff_ptr => buff_ptr%next
+            else
+               exit
+            end if
+         end do
+      end if ! No else, it is legit to pass in a null pointer
+
+   end subroutine hist_field_accumulate_3d
+
+   !#######################################################################
+
    subroutine hist_field_norm_value_1d(field, norm_val, logger)
       use hist_buffer,      only: hist_buffer_t, hist_buff_1d_t
       use hist_msg_handler, only: hist_log_messages, hist_have_error, ERROR
@@ -388,7 +448,7 @@ contains
                   subname=subname)
             else
                call hist_add_message(subname, VERBOSE,                   &
-                  'Accumulated data for',                                &
+                  'Normalized data for',                                 &
                   msgstr2=trim(field%diag_name())//', Buffer type, ',    &
                   msgstr3=trim(buff%buffer_type()),                  &
                   logger=logger)
@@ -431,7 +491,7 @@ contains
                  subname=subname)
             else
                call hist_add_message(subname, VERBOSE,                   &
-                  'Accumulated data for',                                &
+                  'Normalized data for',                                 &
                   msgstr2=trim(field%diag_name())//', Buffer type, ',    &
                   msgstr3=trim(buff_ptr%buffer_type()),                  &
                   logger=logger)
@@ -442,6 +502,49 @@ contains
       end if
 
    end subroutine hist_field_norm_value_2d
+
+   !#######################################################################
+
+   subroutine hist_field_norm_value_3d(field, norm_val, logger)
+      use hist_buffer,      only: hist_buffer_t, hist_buff_3d_t
+      use hist_msg_handler, only: hist_log_messages, hist_have_error, ERROR
+      use hist_msg_handler, only: hist_add_message, VERBOSE, hist_add_error
+      use hist_field,       only: hist_field_info_t
+      use, intrinsic :: ISO_FORTRAN_ENV, only: REAL64
+
+      ! Dummy arguments
+      class(hist_field_info_t),          intent(inout) :: field
+      real(REAL64),                      intent(inout) :: norm_val(:,:,:)
+      type(hist_log_messages), optional, intent(inout) :: logger
+      ! Local variables
+      class(hist_buffer_t), pointer  :: buff_ptr
+      class(hist_buff_3d_t), pointer :: buff
+      character(len=*), parameter    :: subname = 'hist_field_norm_value_3d'
+
+      buff_ptr => field%buffers
+      if (associated(buff_ptr) .and.                                  &
+         (.not. hist_have_error(errors=logger))) then
+         select type(buff_ptr)
+         class is (hist_buff_3d_t)
+            buff => buff_ptr
+            call buff%norm_value(norm_val, field%flag_xyfill(), &
+                    field%fill_value(), logger=logger)
+            if (hist_have_error(errors=logger)) then
+              call logger%add_stack_frame(ERROR, __FILE__, __LINE__-3,  &
+                 subname=subname)
+            else
+               call hist_add_message(subname, VERBOSE,                   &
+                  'Normalized data for',                                 &
+                  msgstr2=trim(field%diag_name())//', Buffer type, ',    &
+                  msgstr3=trim(buff_ptr%buffer_type()),                  &
+                  logger=logger)
+            end if
+         class default
+            call hist_add_error(subname, 'invalid buffer type', errors=logger)
+         end select
+      end if
+
+   end subroutine hist_field_norm_value_3d
 
    !#######################################################################
 
@@ -509,6 +612,38 @@ contains
 
    !#######################################################################
 
+   subroutine hist_field_value_3d(field, val, logger)
+      use hist_buffer,      only: hist_buffer_t, hist_buff_3d_t
+      use hist_msg_handler, only: hist_log_messages, hist_have_error
+      use hist_msg_handler, only: hist_add_error
+      use hist_field,       only: hist_field_info_t
+      use, intrinsic :: ISO_FORTRAN_ENV, only: REAL64
+
+      ! Dummy arguments
+      class(hist_field_info_t),             intent(in) :: field
+      real(REAL64),                        intent(out) :: val(:,:,:)
+      type(hist_log_messages), optional, intent(inout) :: logger
+      ! Local variables
+      class(hist_buffer_t), pointer  :: buff_ptr
+      class(hist_buff_3d_t), pointer :: buff
+      character(len=*), parameter    :: subname = 'hist_field_value_3d'
+
+      buff_ptr => field%buffers
+      if (associated(buff_ptr) .and.                                  &
+         (.not. hist_have_error(errors=logger))) then
+         select type(buff_ptr)
+         class is (hist_buff_3d_t)
+            buff => buff_ptr
+            val = buff%data
+         class default
+            call hist_add_error(subname, 'invalid buffer type', errors=logger)
+         end select
+      end if
+
+   end subroutine hist_field_value_3d
+
+   !#######################################################################
+
    subroutine hist_field_var_buffer_1d(field, var_buffer, logger)
       use hist_buffer,      only: hist_buffer_t, hist_buff_1d_t
       use hist_msg_handler, only: hist_log_messages, hist_have_error
@@ -570,6 +705,38 @@ contains
       end if
 
    end subroutine hist_field_var_buffer_2d
+
+   !#######################################################################
+
+   subroutine hist_field_var_buffer_3d(field, var_buffer, logger)
+      use hist_buffer,      only: hist_buffer_t, hist_buff_3d_t
+      use hist_msg_handler, only: hist_log_messages, hist_have_error
+      use hist_msg_handler, only: hist_add_error
+      use hist_field,       only: hist_field_info_t
+      use, intrinsic :: ISO_FORTRAN_ENV, only: REAL64
+
+      ! Dummy arguments
+      class(hist_field_info_t),             intent(in) :: field
+      real(REAL64),                        intent(out) :: var_buffer(:,:,:)
+      type(hist_log_messages), optional, intent(inout) :: logger
+      ! Local variables
+      class(hist_buffer_t),  pointer :: buff_ptr
+      class(hist_buff_3d_t), pointer :: buff
+      character(len=*), parameter    :: subname = 'hist_field_var_buffer_3d'
+
+      buff_ptr => field%buffers
+      if (associated(buff_ptr) .and. &
+              (.not. hist_have_error(errors=logger))) then
+         select type(buff_ptr)
+         class is (hist_buff_3d_t)
+            buff => buff_ptr
+            call buff%get_var_buffer(var_buffer)
+         class default
+            call hist_add_error(subname, 'invalid buffer type', errors=logger)
+         end select
+      end if
+
+   end subroutine hist_field_var_buffer_3d
 
    !#######################################################################
 
