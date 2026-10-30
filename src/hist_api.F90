@@ -43,13 +43,11 @@ module hist_api
    interface hist_field_set_buffer
       module procedure hist_field_set_buffer_1d
       module procedure hist_field_set_buffer_2d
-      module procedure hist_field_set_buffer_3d
    end interface hist_field_set_buffer
 
    interface hist_field_set_var_buffer
       module procedure hist_field_set_var_buffer_1d
       module procedure hist_field_set_var_buffer_2d
-      module procedure hist_field_set_var_buffer_3d
    end interface hist_field_set_var_buffer
 
 contains
@@ -60,7 +58,7 @@ contains
         type_in, decomp_in, dimensions, acc_flag, num_levels, field_shape, fill_value, &
         sampling_seq, flag_xyfill, mixing_ratio, dim_bounds, mdim_sizes, beg_dims, end_dims,  &
         cell_methods, sampled_on_subcycle, errors) result(new_field)
-      use hist_msg_handler, only: hist_have_error, hist_log_messages, ERROR
+      use hist_msg_handler, only: hist_have_error, hist_log_messages, ERROR, error_length
       use hist_field,       only: hist_field_initialize, hist_field_info_t
       use, intrinsic :: ISO_FORTRAN_ENV, only: REAL64
 
@@ -88,7 +86,7 @@ contains
       type(hist_log_messages), optional, intent(inout) :: errors
 
       integer                     :: astat
-      character(len=256)          :: errmsg
+      character(len=error_length) :: errmsg
       character(len=*), parameter :: subname = 'hist_new_field'
 
       if (.not. hist_have_error(errors=errors)) then
@@ -442,17 +440,12 @@ contains
          class is (hist_buff_1d_t)
             buff => buff_ptr
             call buff%norm_value(norm_val, field%flag_xyfill(), &
-                    field%fill_value(), logger=logger)
-            if (hist_have_error(errors=logger)) then
-               call logger%add_stack_frame(ERROR, __FILE__, __LINE__-3,  &
-                  subname=subname)
-            else
-               call hist_add_message(subname, VERBOSE,                   &
-                  'Normalized data for',                                 &
-                  msgstr2=trim(field%diag_name())//', Buffer type, ',    &
-                  msgstr3=trim(buff%buffer_type()),                  &
-                  logger=logger)
-            end if
+                    field%fill_value())
+            call hist_add_message(subname, VERBOSE,                   &
+               'Normalized data for',                                 &
+               msgstr2=trim(field%diag_name())//', Buffer type, ',    &
+               msgstr3=trim(buff%buffer_type()),                  &
+               logger=logger)
          class default
             call hist_add_error(subname, 'invalid buffer type', errors=logger)
          end select
@@ -485,17 +478,12 @@ contains
          class is (hist_buff_2d_t)
             buff => buff_ptr
             call buff%norm_value(norm_val, field%flag_xyfill(), &
-                    field%fill_value(), logger=logger)
-            if (hist_have_error(errors=logger)) then
-              call logger%add_stack_frame(ERROR, __FILE__, __LINE__-3,  &
-                 subname=subname)
-            else
-               call hist_add_message(subname, VERBOSE,                   &
-                  'Normalized data for',                                 &
-                  msgstr2=trim(field%diag_name())//', Buffer type, ',    &
-                  msgstr3=trim(buff_ptr%buffer_type()),                  &
-                  logger=logger)
-            end if
+                    field%fill_value())
+            call hist_add_message(subname, VERBOSE,                   &
+               'Normalized data for',                                 &
+               msgstr2=trim(field%diag_name())//', Buffer type, ',    &
+               msgstr3=trim(buff_ptr%buffer_type()),                  &
+               logger=logger)
          class default
             call hist_add_error(subname, 'invalid buffer type', errors=logger)
          end select
@@ -528,17 +516,12 @@ contains
          class is (hist_buff_3d_t)
             buff => buff_ptr
             call buff%norm_value(norm_val, field%flag_xyfill(), &
-                    field%fill_value(), logger=logger)
-            if (hist_have_error(errors=logger)) then
-              call logger%add_stack_frame(ERROR, __FILE__, __LINE__-3,  &
-                 subname=subname)
-            else
-               call hist_add_message(subname, VERBOSE,                   &
-                  'Normalized data for',                                 &
-                  msgstr2=trim(field%diag_name())//', Buffer type, ',    &
-                  msgstr3=trim(buff_ptr%buffer_type()),                  &
-                  logger=logger)
-            end if
+                    field%fill_value())
+            call hist_add_message(subname, VERBOSE,                   &
+               'Normalized data for',                                 &
+               msgstr2=trim(field%diag_name())//', Buffer type, ',    &
+               msgstr3=trim(buff_ptr%buffer_type()),                  &
+               logger=logger)
          class default
             call hist_add_error(subname, 'invalid buffer type', errors=logger)
          end select
@@ -825,38 +808,6 @@ contains
 
    !#######################################################################
 
-   subroutine hist_field_set_buffer_3d(field, field_buffer, logger)
-      use hist_field,       only: hist_field_info_t
-      use hist_buffer,      only: hist_buffer_t, hist_buff_3d_t
-      use hist_msg_handler, only: hist_log_messages, hist_have_error
-      use hist_msg_handler, only: hist_add_error
-      use, intrinsic :: ISO_FORTRAN_ENV, only: REAL64
-
-      ! Dummy arguments
-      class(hist_field_info_t), intent(inout) :: field
-      real(REAL64),             intent(in)    :: field_buffer(:,:,:)
-      type(hist_log_messages), optional, intent(inout) :: logger
-      ! Local variables
-      class(hist_buffer_t),  pointer :: buff_ptr
-      class(hist_buff_3d_t), pointer :: buff
-      character(len=*), parameter    :: subname = 'hist_field_set_buffer_3d'
-
-      buff_ptr => field%buffers
-      if (associated(buff_ptr) .and. &
-              (.not. hist_have_error(errors=logger))) then
-         select type(buff_ptr)
-         class is (hist_buff_3d_t)
-            buff => buff_ptr
-            call buff%set_field_buffer(field_buffer)
-         class default
-            call hist_add_error(subname, 'invalid buffer type', errors=logger)
-         end select
-      end if
-
-   end subroutine hist_field_set_buffer_3d
-
-   !#######################################################################
-
    subroutine hist_field_set_samples(field, samples)
       use hist_field,  only: hist_field_info_t
       use hist_buffer, only: hist_buffer_t
@@ -937,38 +888,6 @@ contains
       end if
 
    end subroutine hist_field_set_var_buffer_2d
-
-   !#######################################################################
-
-   subroutine hist_field_set_var_buffer_3d(field, var_buffer, logger)
-      use hist_field,       only: hist_field_info_t
-      use hist_buffer,      only: hist_buffer_t, hist_buff_3d_t
-      use hist_msg_handler, only: hist_log_messages, hist_have_error
-      use hist_msg_handler, only: hist_add_error
-      use, intrinsic :: ISO_FORTRAN_ENV, only: REAL64
-
-      ! Dummy arguments
-      class(hist_field_info_t), intent(inout) :: field
-      real(REAL64),             intent(in)    :: var_buffer(:,:,:)
-      type(hist_log_messages), optional, intent(inout) :: logger
-      ! Local variables
-      class(hist_buffer_t),  pointer :: buff_ptr
-      class(hist_buff_3d_t), pointer :: buff
-      character(len=*), parameter    :: subname = 'hist_field_set_var_buffer_3d'
-
-      buff_ptr => field%buffers
-      if (associated(buff_ptr) .and. &
-              (.not. hist_have_error(errors=logger))) then
-         select type(buff_ptr)
-         class is (hist_buff_3d_t)
-            buff => buff_ptr
-            call buff%set_var_buffer(var_buffer)
-         class default
-            call hist_add_error(subname, 'invalid buffer type', errors=logger)
-         end select
-      end if
-
-   end subroutine hist_field_set_var_buffer_3d
 
    !#######################################################################
 

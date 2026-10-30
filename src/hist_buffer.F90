@@ -259,7 +259,7 @@ contains
 
    subroutine init_buffer(this, field_in, volume_in, horiz_axis_in,           &
         accum_type_in, shape_in, block_sizes_in, block_ind_in, logger)
-      use hist_msg_handler, only: hist_log_messages, hist_add_alloc_error
+      use hist_msg_handler, only: hist_log_messages, hist_add_alloc_error, error_length
       use hist_msg_handler, only: hist_add_error
 
       ! Dummy arguments
@@ -275,7 +275,7 @@ contains
       ! Local variables
       integer                     :: astat
       integer                     :: hsize
-      character(len=256)          :: errmsg
+      character(len=error_length) :: errmsg
       character(len=*), parameter :: subname = 'init_buffer'
 
       ! Sanity check
@@ -326,14 +326,14 @@ contains
    !#######################################################################
 
    subroutine buff_1d_clear(this, logger)
-      use hist_msg_handler, only: hist_log_messages, hist_add_alloc_error
+      use hist_msg_handler, only: hist_log_messages, hist_add_alloc_error, error_length
 
       ! Dummy arguments
       class(hist_buff_1d_t),       intent(inout) :: this
       type(hist_log_messages), optional, intent(inout) :: logger
       ! Local variables
       integer                     :: aerr
-      character(len=256)          :: errmsg
+      character(len=error_length) :: errmsg
       character(len=*), parameter :: subname = 'buff_1d_clear'
 
       if (.not. allocated(this%data)) then
@@ -392,7 +392,7 @@ contains
 
    subroutine buff_1d_accum(this, field, cols_or_block, flag_xyfill, &
          fill_value, cole, logger)
-      use hist_msg_handler, only: hist_log_messages, hist_add_error
+      use hist_msg_handler, only: hist_log_messages, hist_add_error, error_length
       ! Dummy arguments
       class(hist_buff_1d_t),       intent(inout) :: this
       real(REAL64),                      intent(in)    :: field(:)
@@ -406,7 +406,7 @@ contains
       integer            :: col_end_use
       integer            :: ind1
       real(REAL64)       :: fld_val, tmp
-      character(len=256) :: errmsg
+      character(len=error_length) :: errmsg
       character(len=*), parameter :: subname = 'buff_1d_accum'
 
       if (this%has_blocks()) then
@@ -561,14 +561,12 @@ contains
 
    !#######################################################################
 
-   subroutine buff_1d_value(this, norm_val, flag_xyfill, fill_value, logger)
-      use hist_msg_handler, only: hist_log_messages, ERROR, VERBOSE
+   subroutine buff_1d_value(this, norm_val, flag_xyfill, fill_value)
       ! Dummy arguments
-      class(hist_buff_1d_t),             intent(inout) :: this
+      class(hist_buff_1d_t),             intent(in)    :: this
       real(REAL64),                      intent(inout) :: norm_val(:)
       logical,                           intent(in)    :: flag_xyfill
       real(REAL64),                      intent(in)    :: fill_value
-      type(hist_log_messages), optional, intent(inout) :: logger
       ! Local variable
       integer :: ind1
       integer :: nacc
@@ -602,14 +600,14 @@ contains
    !#######################################################################
 
    subroutine buff_2d_clear(this, logger)
-      use hist_msg_handler, only: hist_log_messages, hist_add_alloc_error
+      use hist_msg_handler, only: hist_log_messages, hist_add_alloc_error, error_length
 
       ! Dummy arguments
       class(hist_buff_2d_t),       intent(inout) :: this
       type(hist_log_messages), optional, intent(inout) :: logger
       ! Local variables
       integer                     :: aerr
-      character(len=256)          :: errmsg
+      character(len=error_length) :: errmsg
       character(len=*), parameter :: subname = 'buff_2d_clear'
 
       if (.not. allocated(this%data)) then
@@ -668,7 +666,7 @@ contains
 
    subroutine buff_2d_accum(this, field, cols_or_block, flag_xyfill, &
          fill_value, cole, logger)
-      use hist_msg_handler, only: hist_log_messages, hist_add_error
+      use hist_msg_handler, only: hist_log_messages, hist_add_error, error_length
       ! Dummy arguments
       class(hist_buff_2d_t),       intent(inout) :: this
       real(REAL64),                      intent(in)    :: field(:,:)
@@ -682,7 +680,7 @@ contains
       integer            :: col_end_use
       integer            :: ind1, ind2
       real(REAL64)       :: fld_val, tmp
-      character(len=256) :: errmsg
+      character(len=error_length) :: errmsg
       character(len=*), parameter :: subname = 'buff_2d_accum'
 
       if (this%has_blocks()) then
@@ -865,7 +863,7 @@ contains
    !#######################################################################
 
    subroutine buff_2d_check_fill(this, field, fill_value, logger)
-      use hist_msg_handler, only: hist_log_messages, hist_add_error, ERROR
+      use hist_msg_handler, only: hist_log_messages, hist_add_error
       ! Ensure that columns have fill value applied consistently across levels
       class(hist_buff_2d_t),             intent(inout) :: this
       real(REAL64),                      intent(in)    :: field(:,:)
@@ -890,14 +888,12 @@ contains
 
    !#######################################################################
 
-   subroutine buff_2d_value(this, norm_val, flag_xyfill, fill_value, logger)
-      use hist_msg_handler, only: hist_log_messages, ERROR, VERBOSE
+   subroutine buff_2d_value(this, norm_val, flag_xyfill, fill_value)
       ! Dummy arguments
-      class(hist_buff_2d_t),             intent(inout) :: this
+      class(hist_buff_2d_t),             intent(in)    :: this
       real(REAL64),                      intent(inout) :: norm_val(:,:)
       logical,                           intent(in)    :: flag_xyfill
       real(REAL64),                      intent(in)    :: fill_value
-      type(hist_log_messages), optional, intent(inout) :: logger
       ! Local variable
       integer :: ind1, ind2
       integer :: nacc
@@ -935,14 +931,14 @@ contains
    !#######################################################################
 
    subroutine buff_3d_clear(this, logger)
-      use hist_msg_handler, only: hist_log_messages, hist_add_alloc_error
+      use hist_msg_handler, only: hist_log_messages, hist_add_alloc_error, error_length
 
       ! Dummy arguments
       class(hist_buff_3d_t),       intent(inout) :: this
       type(hist_log_messages), optional, intent(inout) :: logger
       ! Local variables
       integer                     :: aerr
-      character(len=256)          :: errmsg
+      character(len=error_length) :: errmsg
       character(len=*), parameter :: subname = 'buff_3d_clear'
 
       if (.not. allocated(this%data)) then
@@ -1001,7 +997,7 @@ contains
 
    subroutine buff_3d_accum(this, field, cols_or_block, flag_xyfill, &
          fill_value, cole, logger)
-      use hist_msg_handler, only: hist_log_messages, hist_add_error
+      use hist_msg_handler, only: hist_log_messages, hist_add_error, error_length
       ! Dummy arguments
       class(hist_buff_3d_t),       intent(inout) :: this
       real(REAL64),                      intent(in)    :: field(:,:,:)
@@ -1015,7 +1011,7 @@ contains
       integer            :: col_end_use
       integer            :: ind1, ind2, ind3
       real(REAL64)       :: fld_val, tmp
-      character(len=256) :: errmsg
+      character(len=error_length) :: errmsg
       character(len=*), parameter :: subname = 'buff_3d_accum'
 
       if (this%has_blocks()) then
@@ -1063,7 +1059,7 @@ contains
             if (this%num_samples(ind1) == 0) then
                ! First sample for this column: initialize all levels.
                ! Skip fill value columns (num_samples stays 0;
-               ! buff_2d_value will write fill_value at output time)
+               ! buff_3d_value will write fill_value at output time)
                if (.not. (flag_xyfill .and. field(ind1 - col_beg_use + 1, 1, 1) == fill_value)) then
                   do ind2 = 1, this%field_shape(2)
                      do ind3 = 1, this%field_shape(3)
@@ -1100,7 +1096,7 @@ contains
             if (this%num_samples(ind1) == 0) then
                ! First sample for this column: initialize all levels.
                ! Skip fill value columns (num_samples stays 0;
-               ! buff_2d_value will write fill_value at output time)
+               ! buff_3d_value will write fill_value at output time)
                if (.not. (flag_xyfill .and. field(ind1 - col_beg_use + 1, 1, 1) == fill_value)) then
                   do ind2 = 1, this%field_shape(2)
                      do ind3 = 1, this%field_shape(3)
@@ -1212,7 +1208,7 @@ contains
    !#######################################################################
 
    subroutine buff_3d_check_fill(this, field, fill_value, logger)
-      use hist_msg_handler, only: hist_log_messages, hist_add_error, ERROR
+      use hist_msg_handler, only: hist_log_messages, hist_add_error
       ! Ensure that columns have fill value applied consistently across levels
       class(hist_buff_3d_t),             intent(inout) :: this
       real(REAL64),                      intent(in)    :: field(:,:,:)
@@ -1237,14 +1233,12 @@ contains
 
    !#######################################################################
 
-   subroutine buff_3d_value(this, norm_val, flag_xyfill, fill_value, logger)
-      use hist_msg_handler, only: hist_log_messages, ERROR, VERBOSE
+   subroutine buff_3d_value(this, norm_val, flag_xyfill, fill_value)
       ! Dummy arguments
-      class(hist_buff_3d_t),             intent(inout) :: this
+      class(hist_buff_3d_t),             intent(in)    :: this
       real(REAL64),                      intent(inout) :: norm_val(:,:,:)
       logical,                           intent(in)    :: flag_xyfill
       real(REAL64),                      intent(in)    :: fill_value
-      type(hist_log_messages), optional, intent(inout) :: logger
       ! Local variable
       integer :: ind1, ind2, ind3
       integer :: nacc
@@ -1380,7 +1374,7 @@ contains
       !    min: Accumulate smallest value
       !    max: Accumulate largest value
 
-      use hist_msg_handler, only: hist_log_messages, ERROR, VERBOSE
+      use hist_msg_handler, only: hist_log_messages
       use hist_msg_handler, only: hist_add_error
 
       ! Arguments
